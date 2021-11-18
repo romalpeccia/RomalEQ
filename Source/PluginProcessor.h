@@ -59,6 +59,37 @@ public:
     juce::AudioProcessorValueTreeState apvts{ *this, nullptr, "Parameters", createParameterLayout() };
 
 private:
+
+    //create type aliases to simplify definitions
+        using Filter = juce::dsp::IIR::Filter<float>;
+
+        //important JUCE dsp concept, define a processing chain and then pass in a processing context
+        //4 filters in a CutFilter because TODO ??????????
+        using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>;
+        //mono chain: lowcut -> parametric band -> highcut
+        using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>;
+        //two monochains needed for stereo 
+        MonoChain leftChain, rightChain;
+
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RomalEQAudioProcessor)
 };
+
+
+
+
+
+
+
+
+/*
+PERSONAL NOTES
+
+
+
+
+
+
+
+*/
