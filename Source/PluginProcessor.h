@@ -113,16 +113,14 @@ private:
         }
 
         template<typename ChainType, typename CoefficientType>
-        void updateCutFilter(ChainType& , const CoefficientType& coefficients, const Slope& slope)
+        void updateCutFilter(ChainType& chain, const CoefficientType& coefficients, const Slope& slope)
         {
             chain.template setBypassed<0>(true);
             chain.template setBypassed<1>(true);
             chain.template setBypassed<2>(true);
             chain.template setBypassed<3>(true);
-
             switch (slope)
             {
-                
                 case Slope_48: {
 
                     //*leftLowCut.template get<3>().coefficients = *coefficients[3];
@@ -138,10 +136,15 @@ private:
                 case Slope_12: {
                     update<0>(chain, coefficients);
                 }
-
-
             }
         }
+
+        void updateLowCutFilters(const ChainSettings& chainSettings);
+        void updateHighCutFilters(const ChainSettings& chainSettings);
+
+        void updateFilters();
+
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RomalEQAudioProcessor)
 };
