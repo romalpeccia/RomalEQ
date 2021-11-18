@@ -104,6 +104,16 @@ void RomalEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     leftChain.prepare(spec);
     rightChain.prepare(spec);
 
+
+    auto chainSettings = getChainSettings(apvts);
+    
+    auto peakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(sampleRate, chainSettings.peakFreq, chainSettings.peakQuality,
+        juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
+
+
+
+    *leftChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
+    *rightChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
 }
 
 void RomalEQAudioProcessor::releaseResources()
@@ -164,9 +174,21 @@ void RomalEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         buffer.clear (i, 0, buffer.getNumSamples());
 
 
+
+    //update parameters before running audio through them
+    auto chainSettings = getChainSettings(apvts);
+
+    auto peakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(getSampleRate(), chainSettings.peakFreq, chainSettings.peakQuality,
+        juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
+
+
+
+    *leftChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
+    *rightChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
+    
     //processor chain requires processing context to be passed into it in order to run audio through links in the chain
-// processing context needs an audio block instance
-// audio block is initialized with whatever processBlock buffer we are given by the audioprocessor
+    // processing context needs an audio block instance
+    // audio block is initialized with whatever processBlock buffer we are given by the audioprocessor
     //audio block -> seperate into channel blocks -> pass into contexts -> initialize mono chains with context
     juce::dsp::AudioBlock<float> block(buffer);
     auto leftBlock = block.getSingleChannelBlock(0);
@@ -213,7 +235,14 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
     return new RomalEQAudioProcessor();
 }
 
+
+
+/*
+
+HELPER FUNCTIONS
+*/
 juce::AudioProcessorValueTreeState::ParameterLayout RomalEQAudioProcessor::createParameterLayout() {
+    //initializes parameter layout
 
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
@@ -241,5 +270,21 @@ juce::AudioProcessorValueTreeState::ParameterLayout RomalEQAudioProcessor::creat
     layout.add(std::make_unique<juce::AudioParameterChoice>("HighCut Slope", "HighCut Slope", stringArray, 0));
     return layout;
 
+}
+
+
+ChainSettings getChainSettings(juce::AudioProcessorValueTreeState& apvts) {
+    //puts apvts params into our Chain Settings struct for cleaner code
+
+    ChainSettings settings;
+    settings.lowCutFreq = apvts.getRawParameterValue("LowCut Freq")->load();
+    settings.highCutFreq = apvts.getRawParameterValue("HighCut Freq")->load();
+    settings.peakFreq = apvts.getRawParameterValue("Peak Freq")->load();
+    settings.peakGainInDecibels = apvts.getRawParameterValue("Peak Gain")->load();
+    settings.peakQuality = apvts.getRawParameterValue("Peak Quality")->load();
+    settings.lowCutSlope = apvts.getRawParameterValue("LowCut Slope")->load();
+    settings.highCutSlope = apvts.getRawParameterValue("HighCut Slope")->load();
+
+    return settings;
 }
 
