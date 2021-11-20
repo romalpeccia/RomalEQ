@@ -29,7 +29,7 @@ RomalEQAudioProcessorEditor::RomalEQAudioProcessorEditor (RomalEQAudioProcessor&
 
 
 
-
+     
     //iterate through the vector of sliders we made and 
     for (auto* comp : getComps()) 
     {
