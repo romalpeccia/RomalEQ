@@ -105,7 +105,7 @@ private:
         using Coefficients = Filter::CoefficientsPtr;
         static void updateCoefficients(Coefficients& old, const Coefficients& replacements);
 
-        //template arguments help compiler deduce arguments?
+        //template arguments help compiler deduce arguments? TODO understand templates
         template<int Index, typename ChainType, typename CoefficientType>
         void update(ChainType& chain, const CoefficientType& Coefficients) {
             updateCoefficients(chain.template get<Index>().coefficients, Coefficients[Index]);

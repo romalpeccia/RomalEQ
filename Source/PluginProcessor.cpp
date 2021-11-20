@@ -105,26 +105,6 @@ void RomalEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     rightChain.prepare(spec);
     
     updateFilters();
-
-
-    /*
-     updatePeakFilter(chainSettings);
-      auto chainSettings = getChainSettings(apvts);
-    auto lowCutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(chainSettings.lowCutFreq,
-        sampleRate, (chainSettings.lowCutSlope + 1)*2);
-    auto& leftLowCut = leftChain.get<ChainPositions::LowCut>();
-    auto& rightLowCut = rightChain.get<ChainPositions::LowCut>();
-    updateCutFilter(leftLowCut, lowCutCoefficients, chainSettings.lowCutSlope);
-    updateCutFilter(rightLowCut, lowCutCoefficients, chainSettings.lowCutSlope);
-
-
-    auto highCutCoefficients = juce::dsp::FilterDesign<float>::designIIRLowpassHighOrderButterworthMethod(chainSettings.highCutFreq,
-        sampleRate, (chainSettings.highCutSlope + 1) * 2);
-    auto& leftHighCut = leftChain.get<ChainPositions::HighCut>();
-    auto& rightHighCut = rightChain.get<ChainPositions::HighCut>();
-    updateCutFilter(leftHighCut, highCutCoefficients, chainSettings.highCutSlope);
-    updateCutFilter(rightHighCut, highCutCoefficients, chainSettings.highCutSlope);
-    */
 }
 
 void RomalEQAudioProcessor::releaseResources()
@@ -165,22 +145,12 @@ void RomalEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-
-    
-
-
-
-
     // In case we have more outputs than inputs, this code clears any output
     // channels that didn't contain input data, (because these aren't
     // guaranteed to be empty - they may contain garbage).
     // This is here to avoid people getting screaming feedback
     // when they first compile a plugin, but obviously you don't need to keep
-    // this code if your algorithm always overwrites all the output channels.
-
-
-
-
+    // this code if your algorithm always overwrites all the output channels
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
@@ -188,28 +158,6 @@ void RomalEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
 
     //update parameters before running audio through them
     updateFilters();
-
-    /*
-    *     auto chainSettings = getChainSettings(apvts);
-
-    updatePeakFilter(chainSettings);
-    auto lowCutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(chainSettings.lowCutFreq,
-        getSampleRate(), (chainSettings.lowCutSlope + 1) * 2);
-    auto& leftLowCut = leftChain.get<ChainPositions::LowCut>();
-    auto& rightLowCut = rightChain.get<ChainPositions::LowCut>();
-
-    updateCutFilter(leftLowCut, lowCutCoefficients, chainSettings.lowCutSlope);
-    updateCutFilter(rightLowCut, lowCutCoefficients, chainSettings.lowCutSlope);
-  
-    auto highCutCoefficients = juce::dsp::FilterDesign<float>::designIIRLowpassHighOrderButterworthMethod(chainSettings.highCutFreq,
-        getSampleRate(), (chainSettings.highCutSlope + 1) * 2);
-    auto& leftHighCut = leftChain.get<ChainPositions::HighCut>();
-    auto& rightHighCut = rightChain.get<ChainPositions::HighCut>();
-
-    updateCutFilter(leftHighCut, highCutCoefficients, chainSettings.highCutSlope);
-    updateCutFilter(rightHighCut, highCutCoefficients, chainSettings.highCutSlope);
-    */
-
 
     //processor chain requires processing context to be passed into it in order to run audio through links in the chain
     // processing context needs an audio block instance
@@ -235,8 +183,12 @@ bool RomalEQAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* RomalEQAudioProcessor::createEditor()
 {
-    //return new RomalEQAudioProcessorEditor (*this);
-    return new juce::GenericAudioProcessorEditor(*this);
+    //uncomment for generic GUI that shows variables
+    //return new juce::GenericAudioProcessorEditor(*this);
+    
+    return new RomalEQAudioProcessorEditor (*this);
+   
+
 }
 
 //==============================================================================
@@ -245,12 +197,24 @@ void RomalEQAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     // You should use this method to store your parameters in the memory block.
     // You could do that either as raw data, or use the XML or ValueTree classes
     // as intermediaries to make it easy to save and load complex data.
+
+    //store apvts to memory output stream
+    juce::MemoryOutputStream mos(destData, true);
+    apvts.state.writeToStream(mos);
+
 }
 
 void RomalEQAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+
+    //check if tree is valid before copying to plugin
+    auto tree = juce::ValueTree::readFromData(data, sizeInBytes);
+    if (tree.isValid()) {
+        apvts.replaceState(tree);
+        updateFilters();
+    }
 }
 
 //==============================================================================
