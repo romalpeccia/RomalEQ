@@ -51,6 +51,58 @@ using Coefficients = Filter::CoefficientsPtr;
 void updateCoefficients(Coefficients& old, const Coefficients& replacements);
 
 Coefficients makePeakFilter(const ChainSettings& chainSettings, double sampleRate);
+
+
+
+//template arguments help compiler deduce arguments? TODO understand templates
+template<int Index, typename ChainType, typename CoefficientType>
+void update(ChainType& chain, const CoefficientType& Coefficients) {
+    updateCoefficients(chain.template get<Index>().coefficients, Coefficients[Index]);
+    chain.template setBypassed < Index>(false);
+}
+
+template<typename ChainType, typename CoefficientType>
+void updateCutFilter(ChainType& chain, const CoefficientType& coefficients, const Slope& slope)
+{
+    chain.template setBypassed<0>(true);
+    chain.template setBypassed<1>(true);
+    chain.template setBypassed<2>(true);
+    chain.template setBypassed<3>(true);
+    switch (slope)
+    {
+        case Slope_48: {
+
+            //*leftLowCut.template get<3>().coefficients = *coefficients[3];
+            //leftLowCut.template setBypassed<3>(false);
+            update<3>(chain, coefficients);
+        }
+        case Slope_36: {
+            update<2>(chain, coefficients);
+        }
+        case Slope_24: {
+            update<1>(chain, coefficients);
+        }
+        case Slope_12: {
+            update<0>(chain, coefficients);
+        }
+    }
+}
+
+inline auto makeLowCutFilter(const ChainSettings& chainSettings, double sampleRate) {
+    return  juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(chainSettings.lowCutFreq,
+       sampleRate, (chainSettings.lowCutSlope + 1) * 2);
+}
+
+inline auto makeHighCutFilter(const ChainSettings& chainSettings, double sampleRate) {
+    return  juce::dsp::FilterDesign<float>::designIIRLowpassHighOrderButterworthMethod(chainSettings.highCutFreq,
+        sampleRate, (chainSettings.highCutSlope + 1) * 2);
+}
+
+
+
+
+
+
 //==============================================================================
 /**
 */
@@ -107,40 +159,6 @@ private:
 
         void updatePeakFilter(const ChainSettings& chainSettings);
 
-
-        //template arguments help compiler deduce arguments? TODO understand templates
-        template<int Index, typename ChainType, typename CoefficientType>
-        void update(ChainType& chain, const CoefficientType& Coefficients) {
-            updateCoefficients(chain.template get<Index>().coefficients, Coefficients[Index]);
-            chain.template setBypassed < Index>(false);
-        }
-
-        template<typename ChainType, typename CoefficientType>
-        void updateCutFilter(ChainType& chain, const CoefficientType& coefficients, const Slope& slope)
-        {
-            chain.template setBypassed<0>(true);
-            chain.template setBypassed<1>(true);
-            chain.template setBypassed<2>(true);
-            chain.template setBypassed<3>(true);
-            switch (slope)
-            {
-                case Slope_48: {
-
-                    //*leftLowCut.template get<3>().coefficients = *coefficients[3];
-                    //leftLowCut.template setBypassed<3>(false);
-                    update<3>(chain, coefficients);
-                }
-                case Slope_36: {
-                    update<2>(chain, coefficients);
-                }
-                case Slope_24: {
-                    update<1>(chain, coefficients);
-                }
-                case Slope_12: {
-                    update<0>(chain, coefficients);
-                }
-            }
-        }
 
         void updateLowCutFilters(const ChainSettings& chainSettings);
         void updateHighCutFilters(const ChainSettings& chainSettings);

@@ -35,11 +35,25 @@ RomalEQAudioProcessorEditor::RomalEQAudioProcessorEditor (RomalEQAudioProcessor&
     {
         addAndMakeVisible(comp);
     }
+
+
+
+    //listen for parameter changes
+    const auto& params = audioProcessor.getParameters();
+    for (auto param : params) {
+        param->addListener(this);
+    }
+    startTimerHz(60);
+
     setSize(600, 400);
 }
 
 RomalEQAudioProcessorEditor::~RomalEQAudioProcessorEditor()
 {
+    const auto& params = audioProcessor.getParameters();
+    for (auto param : params) {
+        param->removeListener(this);
+    }
 }
 
 //==============================================================================
@@ -139,9 +153,15 @@ void RomalEQAudioProcessorEditor::parameterValueChanged(int parameterIndex, floa
 void RomalEQAudioProcessorEditor::timerCallback() {
     if (parametersChanged.compareAndSetBool(false, true));
     {
-        //update the monochain in the plugineditor
-
+        DBG("params changed");
+        //update the monochain in the editor
+            // get chain settings and coefficients from audioProcessor and use them to update editor chain
+        auto chainSettings = getChainSettings(audioProcessor.apvts);
+        auto peakCoefficients = makePeakFilter(chainSettings, audioProcessor.getSampleRate());
+            // update monochain
+        updateCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
         //signal a repaint
+        repaint();
     }
 
 
