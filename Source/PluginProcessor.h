@@ -28,10 +28,29 @@ struct ChainSettings
 
 ChainSettings getChainSettings(juce::AudioProcessorValueTreeState& apvts );
 
+//create type aliases to simplify definitions
+using Filter = juce::dsp::IIR::Filter<float>;
+
+//important JUCE dsp concept, define a processing chain and then pass in a processing context
+//4 filters in a CutFilter because TODO ??????????
+using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>;
+//mono chain: lowcut -> parametric band -> highcut
+using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>;
+//two monochains needed for stereo 
+
+//define chain Positions
+enum ChainPositions {
+    LowCut,
+    Peak,
+    HighCut
+};
 
 
 
+using Coefficients = Filter::CoefficientsPtr;
+void updateCoefficients(Coefficients& old, const Coefficients& replacements);
 
+Coefficients makePeakFilter(const ChainSettings& chainSettings, double sampleRate);
 //==============================================================================
 /**
 */
@@ -82,28 +101,12 @@ public:
 
 private:
 
-    //create type aliases to simplify definitions
-        using Filter = juce::dsp::IIR::Filter<float>;
+        //enums and type aliases moved outside class
 
-        //important JUCE dsp concept, define a processing chain and then pass in a processing context
-        //4 filters in a CutFilter because TODO ??????????
-        using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>;
-        //mono chain: lowcut -> parametric band -> highcut
-        using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>;
-        //two monochains needed for stereo 
         MonoChain leftChain, rightChain;
 
-
-        //define chain Positions
-        enum ChainPositions {
-            LowCut,
-            Peak,
-            HighCut
-        };
-
         void updatePeakFilter(const ChainSettings& chainSettings);
-        using Coefficients = Filter::CoefficientsPtr;
-        static void updateCoefficients(Coefficients& old, const Coefficients& replacements);
+
 
         //template arguments help compiler deduce arguments? TODO understand templates
         template<int Index, typename ChainType, typename CoefficientType>
@@ -148,3 +151,18 @@ private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RomalEQAudioProcessor)
 };
+
+
+/*
+NOTES:
+
+
+
+
+
+attach params to sliders
+create chain for editor (for visualization)
+draw visualizer in paint()
+attach slider params to chain in editor (not just chain in processor)
+
+*/
