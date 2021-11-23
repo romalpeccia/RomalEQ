@@ -73,7 +73,7 @@ void RomalEQAudioProcessorEditor::paint (juce::Graphics& g)
     auto sampleRate = audioProcessor.getSampleRate();
     std::vector<double> mags;
     mags.resize(w);
-
+    
     //mapping pixels 
     for (int i = 0; i < w; ++i) {
         double mag = 1.f;
@@ -101,26 +101,27 @@ void RomalEQAudioProcessorEditor::paint (juce::Graphics& g)
 
         mags[i] = Decibels::gainToDecibels(mag);
 
+        
 
-        Path responseCurve;
-        const double outputMin = responseArea.getBottom();
-        const double outputMax = responseArea.getY();
-        //map decibels to screen coords
-        auto map = [outputMin, outputMax](double input) {
-            return jmap(input, -20.0, 24.0, outputMin, outputMax);
-        };
-        responseCurve.startNewSubPath(responseArea.getX(), map(mags.front()));
-        for (size_t i = 1; i < mags.size(); ++i) {
-            responseCurve.lineTo(responseArea.getX() + i, map(mags[i]));
-        }
-
-        g.setColour(Colours::orange);
-        g.drawRoundedRectangle(responseArea.toFloat(), 4.f, 1.f);
-        g.setColour(Colours::white);
-        g.strokePath(responseCurve, PathStrokeType(2.f));
+    }
+    Path responseCurve;
+    const double outputMin = responseArea.getBottom();
+    const double outputMax = responseArea.getY();
+    //map decibels to screen coords
+    auto map = [outputMin, outputMax](double input) {
+        return jmap(input, -20.0, 24.0, outputMin, outputMax);
+    };
+    responseCurve.startNewSubPath(responseArea.getX(), map(mags.front()));
+    for (size_t i = 1; i < mags.size(); ++i) {
+        responseCurve.lineTo(responseArea.getX() + i, map(mags[i]));
     }
 
+    g.setColour(Colours::orange);
+    g.drawRoundedRectangle(responseArea.toFloat(), 4.f, 1.f);
+    g.setColour(Colours::white);
+    g.strokePath(responseCurve, PathStrokeType(2.f));
     //end making visualizer
+   
 }
 
 void RomalEQAudioProcessorEditor::resized()
@@ -151,9 +152,9 @@ void RomalEQAudioProcessorEditor::parameterValueChanged(int parameterIndex, floa
     parametersChanged.set(true);
 }
 void RomalEQAudioProcessorEditor::timerCallback() {
-    if (parametersChanged.compareAndSetBool(false, true));
+    if (parametersChanged.compareAndSetBool(false, true))
     {
-        DBG("params changed");
+       // DBG("params changed");
         //update the monochain in the editor
             // get chain settings and coefficients from audioProcessor and use them to update editor chain
         auto chainSettings = getChainSettings(audioProcessor.apvts);
