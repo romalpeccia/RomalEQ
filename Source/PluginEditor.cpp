@@ -8,7 +8,60 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+//==============================================================================
+//Custom Sliders
+void CustomLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height, float sliderPosProportional, float rotaryStartAngle,
+    float rotaryEndAngle, juce::Slider& slider) 
+{
+    using namespace juce;
+    auto bounds = Rectangle<float>(x, y, width, height);
+    g.setColour(Colour(48u, 9u, 84));
+    g.fillEllipse(bounds);
 
+    g.setColour(Colour(128u, 77u, 1u));
+    g.drawEllipse(bounds, 1.f);
+
+    auto center = bounds.getCentre();
+
+    Path p;
+    Rectangle<float> r;
+    r.setLeft(center.getX() - 2);
+    r.setRight(center.getX() + 2);
+    r.setTop(bounds.getY());
+    r.setBottom(center.getY());
+    p.addRectangle(r);
+
+    jassert(rotaryStartAngle < rotaryEndAngle);
+
+    auto sliderAngRad = jmap(sliderPosProportional, 0.f, 1.f, rotaryStartAngle, rotaryEndAngle);
+    p.applyTransform(AffineTransform().rotated(sliderAngRad, center.getX(), center.getY()));
+    g.fillPath(p);
+
+}
+
+
+void RotarySliderWithLabels::paint(juce::Graphics& g) {
+
+    using namespace juce;
+    auto startAngle = degreesToRadians(180.f + 45.f);
+    auto endAngle = degreesToRadians(180.f - 45.f) + MathConstants<float>::twoPi; // add two pi because the range needs to go from low to high
+    auto range = getRange();
+    auto sliderBounds = getSliderBounds();
+
+    getLookAndFeel().drawRotarySlider(g, sliderBounds.getX(), sliderBounds.getY(), sliderBounds.getWidth(), sliderBounds.getHeight(),
+        jmap(getValue(), range.getStart(), range.getEnd(), 0.0, 1.0), 
+        startAngle, endAngle, *this);
+        
+}
+
+juce::Rectangle<int> RotarySliderWithLabels::getSliderBounds() const {
+    return getLocalBounds();
+}
+
+//END Custom Slider 
+
+//==============================================================================
+// Response Curve Code
 //added editor component for response curve, copied over main editor code that controls the response curve
 
 ResponseCurveComponent::ResponseCurveComponent(RomalEQAudioProcessor& p) : audioProcessor(p) {
@@ -124,7 +177,8 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
 
 
 
-
+//==============================================================================
+// END Response Curve Code
 
 
 //==============================================================================
