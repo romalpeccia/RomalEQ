@@ -48,6 +48,11 @@ void RotarySliderWithLabels::paint(juce::Graphics& g) {
     auto range = getRange();
     auto sliderBounds = getSliderBounds();
 
+    g.setColour(Colours::red);
+    g.drawRect(getLocalBounds());
+    g.setColour(Colours::yellow);
+    g.drawRect(sliderBounds);
+
     getLookAndFeel().drawRotarySlider(g, sliderBounds.getX(), sliderBounds.getY(), sliderBounds.getWidth(), sliderBounds.getHeight(),
         jmap(getValue(), range.getStart(), range.getEnd(), 0.0, 1.0), 
         startAngle, endAngle, *this);
@@ -55,7 +60,19 @@ void RotarySliderWithLabels::paint(juce::Graphics& g) {
 }
 
 juce::Rectangle<int> RotarySliderWithLabels::getSliderBounds() const {
-    return getLocalBounds();
+    auto bounds = getLocalBounds();
+    auto size = juce::jmin(bounds.getWidth(), bounds.getHeight());
+    //make space for text?
+    size -= getTextHeight() * 2;
+    //make a square so our ellipse is a circle
+    juce::Rectangle<int> r;
+    r.setSize(size, size);
+    r.setCentre(bounds.getCentreX(), 0);
+    r.setY(2);
+
+    return r;
+    
+
 }
 
 //END Custom Slider 
