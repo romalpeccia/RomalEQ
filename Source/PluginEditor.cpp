@@ -63,11 +63,13 @@ void RotarySliderWithLabels::paint(juce::Graphics& g) {
     auto range = getRange();
     auto sliderBounds = getSliderBounds();
 
+    //bounding boxes to help debug/visualize
+    /*
     g.setColour(Colours::red);
     g.drawRect(getLocalBounds());
     g.setColour(Colours::yellow);
     g.drawRect(sliderBounds);
-
+    */
     getLookAndFeel().drawRotarySlider(g, sliderBounds.getX(), sliderBounds.getY(), sliderBounds.getWidth(), sliderBounds.getHeight(),
         jmap(getValue(), range.getStart(), range.getEnd(), 0.0, 1.0), 
         startAngle, endAngle, *this);
@@ -90,7 +92,35 @@ juce::Rectangle<int> RotarySliderWithLabels::getSliderBounds() const {
 
 juce::String RotarySliderWithLabels::getDisplayString() const
 {
-    return juce::String(getValue());
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(param))
+        return choiceParam->getCurrentChoiceName();
+    juce::String str;
+    bool addK = false;
+
+    //failsafe check to see what type of param we are using
+    if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(param))
+    {
+        float value = getValue();
+        if (value > 999.f) {
+            value /= 1000.f;
+            addK = true;
+        }
+        str = juce::String(value, (addK ? 2 : 0)); //TODO: learn lambda? function
+    }
+    else
+    {
+        jassertfalse; // this shouldn't happen in this project unless I add new params
+    }
+
+    if (suffix.isNotEmpty()) {
+        str << " ";
+        if (addK)
+            str << "k";
+        str << suffix;
+    }
+
+
+    return str;
 }
 
 
