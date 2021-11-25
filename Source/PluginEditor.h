@@ -28,12 +28,24 @@ struct ResponseCurveComponent : juce::Component,
     void timerCallback() override;
     void paint(juce::Graphics& g) override;
 
+    void resized() override;
+
     private:
         RomalEQAudioProcessor& audioProcessor;
         juce::Atomic<bool> parametersChanged{ false };
+        
+        MonoChain monoChain;
+
         void updateChain();
 
-        MonoChain monoChain;
+        //make it an image since it doesnt need to be redrawn
+        juce::Image background;
+
+        //overall response curve GUI area
+        juce::Rectangle<int> getRenderArea();
+        //response curve area
+        juce::Rectangle<int> getAnalysisArea();
+
 };
 
 

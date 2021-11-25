@@ -22,7 +22,7 @@ void CustomLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int wi
     g.drawEllipse(bounds, 1.f);
 
 
-    //???if we can castrswl to rotaryslider with labels then we can use its functions??? why is this needed
+    //???if we can cast rswl to rotaryslider with labels then we can use its functions??? why is this needed
     if (auto* rswl = dynamic_cast<RotarySliderWithLabels*>(&slider)) {
        
     //make main rectangle
@@ -210,8 +210,16 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
     using namespace juce;
     g.fillAll(Colours::black);
 
+
+
+    //draw Grid
+    g.drawImage(background, getLocalBounds().toFloat());
+
+
     //making visualizer
-    auto responseArea = getLocalBounds();
+    //auto responseArea = getLocalBounds();
+     //auto responseArea = getRenderArea();
+     auto responseArea = getAnalysisArea();
     //auto responseArea = bounds.removeFromTop(bounds.getHeight() * 0.33);
     auto w = responseArea.getWidth();
     auto& lowcut = monoChain.get<ChainPositions::LowCut>();
@@ -246,9 +254,9 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
         if (!highcut.isBypassed<3>())
             mag *= highcut.get<3>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
 
-        mags[i] = Decibels::gainToDecibels(mag);
 
-
+        //TODO fix heights of curve so I don't have to have this +1 hack in here to get curve on 0 db line
+        mags[i] = Decibels::gainToDecibels(mag) + 1;
 
     }
     Path responseCurve;
@@ -264,14 +272,92 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
     }
 
     g.setColour(Colours::orange);
-    g.drawRoundedRectangle(responseArea.toFloat(), 4.f, 1.f);
+    g.drawRoundedRectangle(getRenderArea().toFloat(), 4.f, 1.f);
     g.setColour(Colours::white);
     g.strokePath(responseCurve, PathStrokeType(2.f));
     //end making visualizer
 
 }
 
+void ResponseCurveComponent::resized()
+{
 
+    //making the grid
+    using namespace juce;
+    background = Image(Image::PixelFormat::RGB, getWidth(), getHeight(), true);
+    Graphics g(background);
+
+    auto renderArea = getAnalysisArea();
+    auto left = renderArea.getX();
+    auto right = renderArea.getRight();
+    auto top = renderArea.getY();
+    auto bottom = renderArea.getBottom();
+    auto width = renderArea.getWidth();
+
+
+
+
+
+
+    //standardized frequency graphing scale
+    Array<float> freqs{
+        20, 30, 40, 50, 100, 200, 300, 400, 500, 1000, 2000, 3000, 4000, 5000, 10000, 20000
+    };
+
+    //store array of X values
+    Array <float> xs;
+    for (auto f : freqs)
+    {
+        auto normX = mapFromLog10(f, 20.f, 20000.f);
+        xs.add(left + width * normX);
+    }
+
+    g.setColour(Colours::dimgrey);
+    for (auto x : xs)
+    {
+        g.drawVerticalLine(x, top, bottom);
+    }
+
+
+
+    Array<float> gains{
+        -24, -12, 0, 12, 24
+    };
+    for (auto gDB : gains)
+    {
+        auto y = jmap(gDB, -24.f, 24.f, float(bottom), float(top));
+        //draw 0 dB differently for clairty
+        g.setColour(gDB == 0.f ?  Colours::orange : Colours::darkgrey);
+        g.drawHorizontalLine(y, left, right);
+    }
+
+    //draw debug border
+    // g.drawRect(getAnalysisArea());
+}
+
+
+juce::Rectangle<int> ResponseCurveComponent::getRenderArea()
+{
+    auto bounds = getLocalBounds();
+    //bounds.reduce(JUCE_LIVE_CONSTANT(5),
+    //    JUCE_LIVE_CONSTANT(5));
+    //bounds.reduce(10,8 );
+
+    bounds.removeFromTop(12);
+    bounds.removeFromBottom(2);
+    bounds.removeFromLeft(20);
+    bounds.removeFromRight(20);
+
+    return bounds;
+}
+
+juce::Rectangle<int> ResponseCurveComponent::getAnalysisArea() 
+{
+    auto bounds = getRenderArea();
+    bounds.removeFromTop(4);
+    bounds.removeFromBottom(4);
+    return bounds;
+}
 
 //==============================================================================
 // END Response Curve Code
