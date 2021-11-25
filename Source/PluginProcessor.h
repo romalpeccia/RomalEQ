@@ -308,7 +308,8 @@ private:
 
         void updateFilters();
 
-
+        //produce a sin wave on our grid to debug FFT visualizer?
+        juce::dsp::Oscillator<float> osc;
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RomalEQAudioProcessor)
 };

@@ -155,7 +155,9 @@ juce::String RotarySliderWithLabels::getDisplayString() const
 //added editor component for response curve, copied over main editor code that controls the response curve
 
 ResponseCurveComponent::ResponseCurveComponent(RomalEQAudioProcessor& p) : audioProcessor(p) 
-, leftChannelFifo(&audioProcessor.leftChannelFifo)
+//, leftChannelFifo(&audioProcessor.leftChannelFifo)
+, leftPathProducer(audioProcessor.leftChannelFifo),
+rightPathProducer(audioProcessor.rightChannelFifo)
 {
 
     const auto& params = audioProcessor.getParameters();
@@ -163,8 +165,7 @@ ResponseCurveComponent::ResponseCurveComponent(RomalEQAudioProcessor& p) : audio
         param->addListener(this);
     }
 
-    leftChannelFFTDataGenerator.changeOrder(FFTOrder::order2048);
-    monoBuffer.setSize(1, leftChannelFFTDataGenerator.getFFTSize());
+
 
 
 
@@ -184,7 +185,9 @@ void ResponseCurveComponent::parameterValueChanged(int parameterIndex, float new
 
     parametersChanged.set(true);
 }
-void ResponseCurveComponent::timerCallback() {
+
+void PathProducer::process(juce::Rectangle<float> fftBounds, double sampleRate)
+{
     //while there are buffers to pull, if we can pull buffer, send it to FFT data generator
     juce::AudioBuffer<float> tempIncomingBuffer;
     while (leftChannelFifo->getNumCompleteBuffersAvailable() > 0)
@@ -198,19 +201,19 @@ void ResponseCurveComponent::timerCallback() {
             //copy incoming data
             juce::FloatVectorOperations::copy(monoBuffer.getWritePointer(0, monoBuffer.getNumSamples() - size),
                 tempIncomingBuffer.getReadPointer(0, 0),
-                size); 
+                size);
             //pass it into FFT data generator
             leftChannelFFTDataGenerator.produceFFTDataForRendering(monoBuffer, -48.f);
         }
     }
     //if there are FFT data buffers to pull
     // if we can pull a buffer, generate a path
-    const auto fftBounds = getAnalysisArea().toFloat();
+    //const auto fftBounds = getAnalysisArea().toFloat();
     const auto fftSize = leftChannelFFTDataGenerator.getFFTSize();
     // 48000/2048 = 23 hz = bin width
-    const auto binWidth = audioProcessor.getSampleRate() / (double)fftSize;
-    
-    while (leftChannelFFTDataGenerator.getNumAvailableFFTDataBlocks() > 0) 
+    const auto binWidth = sampleRate / (double)fftSize;
+
+    while (leftChannelFFTDataGenerator.getNumAvailableFFTDataBlocks() > 0)
     {
         std::vector<float> fftData;
         if (leftChannelFFTDataGenerator.getFFTData(fftData))
@@ -226,14 +229,24 @@ void ResponseCurveComponent::timerCallback() {
         pathProducer.getPath(leftChannelFFTPath);
 
     }
+}
 
+
+void ResponseCurveComponent::timerCallback() {
     
+
+    auto fftBounds = getAnalysisArea().toFloat();
+    auto sampleRate = audioProcessor.getSampleRate();
+    leftPathProducer.process(fftBounds, sampleRate);
+    rightPathProducer.process(fftBounds, sampleRate);
+
+
     if (parametersChanged.compareAndSetBool(false, true))
     {
         // DBG("params changed");
         updateChain();
         //signal a repaint
-        repaint();
+        //repaint();
     }
     repaint();
 
@@ -328,8 +341,19 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
     }
 
     //draw spectrum 
-    g.setColour(Colours::blue);
+    //transform path to be at bottom and not at weird origin
+
+    auto leftChannelFFTPath = leftPathProducer.getPath();
+    leftChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
+
+    g.setColour(Colours::skyblue);
     g.strokePath(leftChannelFFTPath, PathStrokeType(1.f));
+
+    auto rightChannelFFTPath = rightPathProducer.getPath();
+    rightChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
+
+    g.setColour(Colours::lightyellow);
+    g.strokePath(rightChannelFFTPath, PathStrokeType(1.f));
 
     //end draw spectrum
 
@@ -338,7 +362,7 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
     g.drawRoundedRectangle(getRenderArea().toFloat(), 4.f, 1.f);
     g.setColour(Colours::white);
     g.strokePath(responseCurve, PathStrokeType(2.f));
-    //end making visualizer
+//end making visualizer
 
 }
 
@@ -593,34 +617,6 @@ void RomalEQAudioProcessorEditor::resized()
 
 }
 
-/*
-void RomalEQAudioProcessorEditor::parameterValueChanged(int parameterIndex, float newValue) {
-
-    parametersChanged.set(true);
-}
-void RomalEQAudioProcessorEditor::timerCallback() {
-    if (parametersChanged.compareAndSetBool(false, true))
-    {
-       // DBG("params changed");
-        //update the monochain in the editor
-            // get chain settings and coefficients from audioProcessor and use them to update editor chain
-        auto chainSettings = getChainSettings(audioProcessor.apvts);
-        auto peakCoefficients = makePeakFilter(chainSettings, audioProcessor.getSampleRate());
-            // update monochain
-        updateCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
-
-
-        auto lowCutCoefficients = makeLowCutFilter(chainSettings, audioProcessor.getSampleRate());
-        auto highCutCoefficients = makeHighCutFilter(chainSettings, audioProcessor.getSampleRate());
-
-        updateCutFilter(monoChain.get<ChainPositions::LowCut > (), lowCutCoefficients, chainSettings.lowCutSlope);
-        updateCutFilter(monoChain.get<ChainPositions::HighCut >(), highCutCoefficients, chainSettings.highCutSlope);
-
-        //signal a repaint
-        repaint();
-    }
-}
-*/
 
 std::vector<juce::Component*> RomalEQAudioProcessorEditor::getComps() {
     return{

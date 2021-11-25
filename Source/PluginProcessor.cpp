@@ -109,6 +109,13 @@ void RomalEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
 
     leftChannelFifo.prepare(samplesPerBlock);
     rightChannelFifo.prepare(samplesPerBlock);
+
+    /*
+    osc.initialise([](float x) { return std::sin(x);  });
+    spec.numChannels = getTotalNumOutputChannels();
+    osc.prepare(spec);
+    osc.setFrequency(1000);
+    */
 }
 
 void RomalEQAudioProcessor::releaseResources()
@@ -163,11 +170,23 @@ void RomalEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     //update parameters before running audio through them
     updateFilters();
 
+
+
+
+
     //processor chain requires processing context to be passed into it in order to run audio through links in the chain
     // processing context needs an audio block instance
     // audio block is initialized with whatever processBlock buffer we are given by the audioprocessor
     //audio block -> seperate into channel blocks -> pass into contexts -> initialize mono chains with context
     juce::dsp::AudioBlock<float> block(buffer);
+
+    //oscilator producing sin wave for debugging
+    /*
+    buffer.clear();
+    juce::dsp::ProcessContextReplacing<float> stereoContext(block);
+    osc.process(stereoContext);
+    */
+
     auto leftBlock = block.getSingleChannelBlock(0);
     auto rightBlock = block.getSingleChannelBlock(1);
     juce::dsp::ProcessContextReplacing<float> leftContext(leftBlock);
