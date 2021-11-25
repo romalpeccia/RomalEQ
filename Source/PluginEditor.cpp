@@ -301,7 +301,7 @@ void ResponseCurveComponent::resized()
 
     //standardized frequency graphing scale
     Array<float> freqs{
-        20, 30, 40, 50, 100, 200, 300, 400, 500, 1000, 2000, 3000, 4000, 5000, 10000, 20000
+        20, /*30, 40,*/ 50, 100, 200,/*300, 400,*/ 500, 1000, 2000, /*3000, 4000,*/ 5000, 10000, 20000
     };
 
     //store array of X values
@@ -329,10 +329,67 @@ void ResponseCurveComponent::resized()
         //draw 0 dB differently for clairty
         g.setColour(gDB == 0.f ?  Colours::orange : Colours::darkgrey);
         g.drawHorizontalLine(y, left, right);
+
     }
 
     //draw debug border
     // g.drawRect(getAnalysisArea());
+
+    //add labels to axes
+    g.setColour(Colours::white);
+    const int fontHeight = 10;
+    g.setFont(fontHeight);
+    //loop through frequencies and draw them
+    for (int i = 0; i < freqs.size(); ++i)
+    {
+        auto f = freqs[i];
+        auto x = xs[i];
+        bool addK = false;
+        String str;
+        if (f > 999.f)
+        {
+            addK = true;
+            f /= 1000.f;
+        }
+        str << f;
+        if (addK)
+            str << "k";
+        str << "Hz";
+        auto textWidth = g.getCurrentFont().getStringWidth(str);
+        Rectangle<int> r;
+        r.setSize(textWidth, fontHeight);
+        r.setCentre(x, 0);  
+        r.setY(1);
+        g.drawFittedText(str, r, juce::Justification::centred, 1);
+    }
+
+    for (auto gDB : gains){
+        auto y = jmap(gDB, -24.f, 24.f, float(bottom), float(top));
+        String str;
+
+        //draw leftside
+        if (gDB > 0)
+            str << "+";
+        str << gDB;
+        Rectangle <int> r;
+        auto textWidth = g.getCurrentFont().getStringWidth(str);
+        r.setSize(textWidth, fontHeight);
+        r.setX(getWidth() - textWidth);
+        r.setCentre(r.getCentreX(), y);
+
+        g.setColour(gDB == 0.f ? Colours::orange : Colours::white);
+        g.drawFittedText(str, r, juce::Justification::centred, 1);
+
+        //draw right side (why is it different?)
+        str.clear();
+        str << (gDB - 24.f);
+        r.setX(1);
+        r.setCentre(r.getCentreX(), y);
+        textWidth = g.getCurrentFont().getStringWidth(str);
+        r.setSize(textWidth, fontHeight);
+        g.setColour(Colours::grey);
+        g.drawFittedText(str, r, juce::Justification::centred, 1);
+    }
 }
 
 
