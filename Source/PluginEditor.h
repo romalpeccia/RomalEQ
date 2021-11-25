@@ -31,6 +31,8 @@ struct ResponseCurveComponent : juce::Component,
     private:
         RomalEQAudioProcessor& audioProcessor;
         juce::Atomic<bool> parametersChanged{ false };
+        void updateChain();
+
         MonoChain monoChain;
 };
 
