@@ -21,22 +21,37 @@ void CustomLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int wi
     g.setColour(Colour(128u, 77u, 1u));
     g.drawEllipse(bounds, 1.f);
 
-    auto center = bounds.getCentre();
 
-    Path p;
-    Rectangle<float> r;
-    r.setLeft(center.getX() - 2);
-    r.setRight(center.getX() + 2);
-    r.setTop(bounds.getY());
-    r.setBottom(center.getY());
-    p.addRectangle(r);
+    //???if we can castrswl to rotaryslider with labels then we can use its functions??? why is this needed
+    if (auto* rswl = dynamic_cast<RotarySliderWithLabels*>(&slider)) {
+       
+    //make main rectangle
+        auto center = bounds.getCentre();
 
-    jassert(rotaryStartAngle < rotaryEndAngle);
+        Path p;
+        Rectangle<float> r;
+        r.setLeft(center.getX() - 2);
+        r.setRight(center.getX() + 2);
+        r.setTop(bounds.getY());
+        r.setBottom(center.getY()  - rswl->getTextHeight()*1.5); // subtract text height
+        p.addRoundedRectangle(r, 2.f);
+        jassert(rotaryStartAngle < rotaryEndAngle);
 
-    auto sliderAngRad = jmap(sliderPosProportional, 0.f, 1.f, rotaryStartAngle, rotaryEndAngle);
-    p.applyTransform(AffineTransform().rotated(sliderAngRad, center.getX(), center.getY()));
-    g.fillPath(p);
+        auto sliderAngRad = jmap(sliderPosProportional, 0.f, 1.f, rotaryStartAngle, rotaryEndAngle);
+        p.applyTransform(AffineTransform().rotated(sliderAngRad, center.getX(), center.getY()));
+        g.fillPath(p);
 
+    // make value text rectangle
+        g.setFont(rswl->getTextHeight());
+        auto text = rswl->getDisplayString();
+        auto strWidth = g.getCurrentFont().getStringWidth(text);
+        r.setSize(strWidth + 4, rswl->getTextHeight() + 2);
+        r.setCentre(center);
+        g.setColour(Colour(48u, 9u, 84));
+        g.fillRect(r);
+        g.setColour(Colours::white);
+        g.drawFittedText(text, r.toNearestInt(), juce::Justification::centred, 1);
+    }
 }
 
 
@@ -71,9 +86,13 @@ juce::Rectangle<int> RotarySliderWithLabels::getSliderBounds() const {
     r.setY(2);
 
     return r;
-    
-
 }
+
+juce::String RotarySliderWithLabels::getDisplayString() const
+{
+    return juce::String(getValue());
+}
+
 
 //END Custom Slider 
 
