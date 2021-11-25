@@ -9,46 +9,18 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-//==============================================================================
-RomalEQAudioProcessorEditor::RomalEQAudioProcessorEditor (RomalEQAudioProcessor& p)
-    : AudioProcessorEditor (&p), audioProcessor (p),
-    //why is there code outside of the function block?
-    
+//added editor component for response curve, copied over main editor code that controls the response curve
 
-    //attach apvts params to sliders
-    peakFreqSliderAttachment(audioProcessor.apvts, "Peak Freq", peakFreqSlider),
-    peakGainSliderAttachment(audioProcessor.apvts, "Peak Gain", peakGainSlider),
-    peakQualitySliderAttachment(audioProcessor.apvts, "Peak Quality", peakQualitySlider),
-    lowCutFreqSliderAttachment(audioProcessor.apvts, "LowCut Freq", lowCutFreqSlider),
-    highCutFreqSliderAttachment(audioProcessor.apvts, "HighCut Freq", highCutFreqSlider),
-    lowCutSlopeSliderAttachment(audioProcessor.apvts, "LowCut Slope", lowCutSlopeSlider),
-    highCutSlopeSliderAttachment(audioProcessor.apvts, "HighCut Slope", highCutSlopeSlider)
-{
-    // Make sure that before the constructor has finished, you've set the
-    // editor's size to whatever you need it to be.
+ResponseCurveComponent::ResponseCurveComponent(RomalEQAudioProcessor& p) : audioProcessor(p) {
 
-
-
-     
-    //iterate through the vector of sliders we made 
-    for (auto* comp : getComps()) 
-    {
-        addAndMakeVisible(comp);
-    }
-
-
-
-    //listen for parameter changes
     const auto& params = audioProcessor.getParameters();
     for (auto param : params) {
         param->addListener(this);
     }
     startTimerHz(60);
-
-    setSize(600, 400);
 }
 
-RomalEQAudioProcessorEditor::~RomalEQAudioProcessorEditor()
+ResponseCurveComponent::~ResponseCurveComponent()
 {
     const auto& params = audioProcessor.getParameters();
     for (auto param : params) {
@@ -56,16 +28,42 @@ RomalEQAudioProcessorEditor::~RomalEQAudioProcessorEditor()
     }
 }
 
-//==============================================================================
-void RomalEQAudioProcessorEditor::paint (juce::Graphics& g) 
+void ResponseCurveComponent::parameterValueChanged(int parameterIndex, float newValue) {
+
+    parametersChanged.set(true);
+}
+void ResponseCurveComponent::timerCallback() {
+    if (parametersChanged.compareAndSetBool(false, true))
+    {
+        // DBG("params changed");
+         //update the monochain in the editor
+             // get chain settings and coefficients from audioProcessor and use them to update editor chain
+        auto chainSettings = getChainSettings(audioProcessor.apvts);
+        auto peakCoefficients = makePeakFilter(chainSettings, audioProcessor.getSampleRate());
+        // update monochain
+        updateCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
+
+
+        auto lowCutCoefficients = makeLowCutFilter(chainSettings, audioProcessor.getSampleRate());
+        auto highCutCoefficients = makeHighCutFilter(chainSettings, audioProcessor.getSampleRate());
+
+        updateCutFilter(monoChain.get<ChainPositions::LowCut >(), lowCutCoefficients, chainSettings.lowCutSlope);
+        updateCutFilter(monoChain.get<ChainPositions::HighCut >(), highCutCoefficients, chainSettings.highCutSlope);
+
+        //signal a repaint
+        repaint();
+    }
+}
+
+void ResponseCurveComponent::paint(juce::Graphics& g)
 {
 
     using namespace juce;
-    g.fillAll (Colours::black);
+    g.fillAll(Colours::black);
 
     //making visualizer
-    auto bounds = getLocalBounds();
-    auto responseArea = bounds.removeFromTop(bounds.getHeight() * 0.33);
+    auto responseArea = getLocalBounds();
+    //auto responseArea = bounds.removeFromTop(bounds.getHeight() * 0.33);
     auto w = responseArea.getWidth();
     auto& lowcut = monoChain.get<ChainPositions::LowCut>();
     auto& peak = monoChain.get<ChainPositions::Peak>();
@@ -73,16 +71,16 @@ void RomalEQAudioProcessorEditor::paint (juce::Graphics& g)
     auto sampleRate = audioProcessor.getSampleRate();
     std::vector<double> mags;
     mags.resize(w);
-    
+
     //mapping pixels 
     for (int i = 0; i < w; ++i) {
         double mag = 1.f;
         auto freq = mapToLog10(double(i) / double(w), 20.0, 20000.0);
-        if (! monoChain.isBypassed<ChainPositions::Peak>()) 
+        if (!monoChain.isBypassed<ChainPositions::Peak>())
             mag *= peak.coefficients->getMagnitudeForFrequency(freq, sampleRate);
-        
-        if (! lowcut.isBypassed<0>() )
-             mag *= lowcut.get<0>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
+
+        if (!lowcut.isBypassed<0>())
+            mag *= lowcut.get<0>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
         if (!lowcut.isBypassed<1>())
             mag *= lowcut.get<1>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
         if (!lowcut.isBypassed<2>())
@@ -101,7 +99,7 @@ void RomalEQAudioProcessorEditor::paint (juce::Graphics& g)
 
         mags[i] = Decibels::gainToDecibels(mag);
 
-        
+
 
     }
     Path responseCurve;
@@ -121,6 +119,78 @@ void RomalEQAudioProcessorEditor::paint (juce::Graphics& g)
     g.setColour(Colours::white);
     g.strokePath(responseCurve, PathStrokeType(2.f));
     //end making visualizer
+
+}
+
+
+
+
+
+
+//==============================================================================
+RomalEQAudioProcessorEditor::RomalEQAudioProcessorEditor(RomalEQAudioProcessor& p)
+    : AudioProcessorEditor(&p), audioProcessor(p),
+    //TODO understand why is there code outside of the function block?, part of constructor syntax?
+
+    //create custom sliders
+    peakFreqSlider(*audioProcessor.apvts.getParameter("Peak Freq"), "Hz"),
+    peakGainSlider(*audioProcessor.apvts.getParameter("Peak Gain"), "dB"),
+    peakQualitySlider(*audioProcessor.apvts.getParameter("Peak Quality"), ""),
+    lowCutFreqSlider(*audioProcessor.apvts.getParameter("LowCut Freq"), "Hz"),
+    highCutFreqSlider(*audioProcessor.apvts.getParameter("HighCut Freq"), "Hz"),
+    lowCutSlopeSlider(*audioProcessor.apvts.getParameter("LowCut Slope"), "db/Oct"),
+    highCutSlopeSlider(*audioProcessor.apvts.getParameter("HighCut Slope"), "db/Oct"),
+
+
+
+   
+    responseCurveComponent(audioProcessor), 
+    //attach apvts params to sliders
+    peakFreqSliderAttachment(audioProcessor.apvts, "Peak Freq", peakFreqSlider),
+    peakGainSliderAttachment(audioProcessor.apvts, "Peak Gain", peakGainSlider),
+    peakQualitySliderAttachment(audioProcessor.apvts, "Peak Quality", peakQualitySlider),
+    lowCutFreqSliderAttachment(audioProcessor.apvts, "LowCut Freq", lowCutFreqSlider),
+    highCutFreqSliderAttachment(audioProcessor.apvts, "HighCut Freq", highCutFreqSlider),
+    lowCutSlopeSliderAttachment(audioProcessor.apvts, "LowCut Slope", lowCutSlopeSlider),
+    highCutSlopeSliderAttachment(audioProcessor.apvts, "HighCut Slope", highCutSlopeSlider)
+   
+
+
+{
+    // Make sure that before the constructor has finished, you've set the
+    // editor's size to whatever you need it to be.
+
+
+
+     
+    //iterate through the vector of sliders we made 
+    for (auto* comp : getComps()) 
+    {
+        addAndMakeVisible(comp);
+    }
+
+
+
+    setSize(600, 400);
+}
+
+RomalEQAudioProcessorEditor::~RomalEQAudioProcessorEditor()
+{
+
+}
+
+
+
+
+
+
+//==============================================================================
+void RomalEQAudioProcessorEditor::paint (juce::Graphics& g) 
+{
+
+    using namespace juce;
+    g.fillAll (Colours::black);
+
    
 }
 
@@ -131,6 +201,9 @@ void RomalEQAudioProcessorEditor::resized()
     auto bounds = getLocalBounds();
     //reserve top 1/3 for visualizer
     auto responseArea = bounds.removeFromTop(bounds.getHeight() * 0.33);
+    responseCurveComponent.setBounds(responseArea);
+
+
 
     auto lowCutArea = bounds.removeFromLeft(bounds.getWidth() * 0.33);
     auto highCutArea = bounds.removeFromRight(bounds.getWidth() * 0.5);
@@ -147,6 +220,7 @@ void RomalEQAudioProcessorEditor::resized()
 
 }
 
+/*
 void RomalEQAudioProcessorEditor::parameterValueChanged(int parameterIndex, float newValue) {
 
     parametersChanged.set(true);
@@ -172,9 +246,8 @@ void RomalEQAudioProcessorEditor::timerCallback() {
         //signal a repaint
         repaint();
     }
-
-
 }
+*/
 
 std::vector<juce::Component*> RomalEQAudioProcessorEditor::getComps() {
     return{
@@ -184,8 +257,8 @@ std::vector<juce::Component*> RomalEQAudioProcessorEditor::getComps() {
         &lowCutFreqSlider,
         &highCutFreqSlider,
         &lowCutSlopeSlider,
-        &highCutSlopeSlider
-
+        &highCutSlopeSlider,
+        &responseCurveComponent
     };
 
 }
