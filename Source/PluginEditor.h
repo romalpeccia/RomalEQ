@@ -298,20 +298,28 @@ private:
     //juce::Atomic<bool> parametersChanged{ false };
 
     RotarySliderWithLabels peakFreqSlider, peakGainSlider, peakQualitySlider, lowCutFreqSlider, highCutFreqSlider, lowCutSlopeSlider, highCutSlopeSlider;
-    
+
+    juce::ToggleButton lowcutBypassButton, peakBypassButton, highcutBypassButton, analyzerEnabledButton;
+
+
+
+
     ResponseCurveComponent responseCurveComponent;
+    //put components in a vector to iterate through them easily
+    std::vector<juce::Component*> getComps();
     
-    
-    
+
+
     using APVTS = juce::AudioProcessorValueTreeState;
     using Attachment = APVTS::SliderAttachment;
-
     Attachment peakFreqSliderAttachment, peakGainSliderAttachment, peakQualitySliderAttachment,
         lowCutFreqSliderAttachment, highCutFreqSliderAttachment, lowCutSlopeSliderAttachment, highCutSlopeSliderAttachment;
+    using ButtonAttachment = APVTS::ButtonAttachment;
+    ButtonAttachment lowcutButtonAttachment, highcutButtonAttachment, peakButtonAttachment, analyzerButtonAttachment;
 
 
-    //put them in a vector to iterate through them easily
-    std::vector<juce::Component*> getComps();
+
+
 
     //editor has its own monochain -> monochain moved to curve editor
     //MonoChain monoChain;
