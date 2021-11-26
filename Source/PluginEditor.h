@@ -248,7 +248,8 @@ struct CustomLookAndFeel : juce::LookAndFeel_V4 {
         bool shouldDrawButtonAsDown) override;
 
 };
-
+struct PowerButton : juce::ToggleButton{};
+struct AnalyzerButton : juce::ToggleButton {};
 
 //custom slider object that we can reuse, that inherits juce Slider, with private variables
 struct RotarySliderWithLabels : juce::Slider
@@ -305,7 +306,8 @@ private:
 
     RotarySliderWithLabels peakFreqSlider, peakGainSlider, peakQualitySlider, lowCutFreqSlider, highCutFreqSlider, lowCutSlopeSlider, highCutSlopeSlider;
 
-    juce::ToggleButton lowcutBypassButton, peakBypassButton, highcutBypassButton, analyzerEnabledButton;
+    PowerButton lowcutBypassButton, peakBypassButton, highcutBypassButton;
+    AnalyzerButton analyzerEnabledButton;
 
 
 
