@@ -237,10 +237,16 @@ struct ResponseCurveComponent : juce::Component,
 
 
 struct CustomLookAndFeel : juce::LookAndFeel_V4 {
-
+    //put all custom aesthetic functions herE?
     void drawRotarySlider(juce::Graphics&, int x, int y, int width, int height,
         float sliderPosProportional, float rotaryStartAngle,
         float rotaryEndAngle, juce::Slider&) override;
+
+    void drawToggleButton(juce::Graphics& g, 
+        juce::ToggleButton& toggleButton, 
+        bool shouldDrawButtonAsHighlighted,
+        bool shouldDrawButtonAsDown) override;
+
 };
 
 
@@ -317,7 +323,7 @@ private:
     using ButtonAttachment = APVTS::ButtonAttachment;
     ButtonAttachment lowcutButtonAttachment, highcutButtonAttachment, peakButtonAttachment, analyzerButtonAttachment;
 
-
+    CustomLookAndFeel lnf;
 
 
 
