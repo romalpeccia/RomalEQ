@@ -15,13 +15,26 @@ void CustomLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int wi
 {
     using namespace juce;
     auto bounds = Rectangle<float>(x, y, width, height);
-    g.setColour(Colour(48u, 9u, 84));
-    g.fillEllipse(bounds);
-
-    g.setColour(Colour(128u, 77u, 1u));
-    g.drawEllipse(bounds, 1.f);
 
 
+    auto enabled = slider.isEnabled();
+
+    if (enabled)
+    {
+        g.setColour(Colour(48u, 9u, 84));
+        g.fillEllipse(bounds);
+
+        g.setColour(Colour(128u, 77u, 1u));
+        g.drawEllipse(bounds, 1.f);
+    }
+    else
+    {
+        g.setColour(Colours::darkgrey);
+        g.fillEllipse(bounds);
+
+        g.setColour(Colours::black);
+        g.drawEllipse(bounds, 1.f);
+    }
     //???if we can cast rswl to rotaryslider with labels then we can use its functions??? why is this needed
     if (auto* rswl = dynamic_cast<RotarySliderWithLabels*>(&slider)) {
        
@@ -86,15 +99,9 @@ void CustomLookAndFeel::drawToggleButton(juce::Graphics& g,
         g.setColour(color);
         auto bounds = toggleButton.getLocalBounds();
         g.drawRect(bounds);
-        auto insetRect = bounds.reduced(4);
-        Path randomPath;
-        Random r;
-        randomPath.startNewSubPath(insetRect.getX(), insetRect.getY() + insetRect.getHeight() * r.nextFloat());
-        for (auto x = insetRect.getX() + 1; x < insetRect.getRight(); x += 2)
-        {
-            randomPath.lineTo(x, insetRect.getY() + insetRect.getHeight() * r.nextFloat());
-        }
-        g.strokePath(randomPath, PathStrokeType(1.f));
+
+       
+        g.strokePath(analyzerButton->randomPath, PathStrokeType(1.f));
     }
 
 }
@@ -279,12 +286,13 @@ void PathProducer::process(juce::Rectangle<float> fftBounds, double sampleRate)
 
 void ResponseCurveComponent::timerCallback() {
     
-
-    auto fftBounds = getAnalysisArea().toFloat();
-    auto sampleRate = audioProcessor.getSampleRate();
-    leftPathProducer.process(fftBounds, sampleRate);
-    rightPathProducer.process(fftBounds, sampleRate);
-
+    if (showFFTAnalysis)
+    {
+        auto fftBounds = getAnalysisArea().toFloat();
+        auto sampleRate = audioProcessor.getSampleRate();
+        leftPathProducer.process(fftBounds, sampleRate);
+        rightPathProducer.process(fftBounds, sampleRate);
+    }
 
     if (parametersChanged.compareAndSetBool(false, true))
     {
@@ -399,19 +407,20 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
 
     //draw spectrum 
     //transform path to be at bottom and not at weird origin
+    if (showFFTAnalysis) 
+    {
+        auto leftChannelFFTPath = leftPathProducer.getPath();
+        leftChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
 
-    auto leftChannelFFTPath = leftPathProducer.getPath();
-    leftChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
+        g.setColour(Colours::skyblue);
+        g.strokePath(leftChannelFFTPath, PathStrokeType(1.f));
 
-    g.setColour(Colours::skyblue);
-    g.strokePath(leftChannelFFTPath, PathStrokeType(1.f));
+        auto rightChannelFFTPath = rightPathProducer.getPath();
+        rightChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
 
-    auto rightChannelFFTPath = rightPathProducer.getPath();
-    rightChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
-
-    g.setColour(Colours::lightyellow);
-    g.strokePath(rightChannelFFTPath, PathStrokeType(1.f));
-
+        g.setColour(Colours::lightyellow);
+        g.strokePath(rightChannelFFTPath, PathStrokeType(1.f));
+    }
     //end draw spectrum
 
 
@@ -627,6 +636,53 @@ RomalEQAudioProcessorEditor::RomalEQAudioProcessorEditor(RomalEQAudioProcessor& 
     lowcutBypassButton.setLookAndFeel(&lnf);
     highcutBypassButton.setLookAndFeel(&lnf);
     analyzerEnabledButton.setLookAndFeel(&lnf);
+
+    //save state of AudioProcessorEditor because everything is asynchronous and may change while this is running?
+    auto safePtr = juce::Component::SafePointer<RomalEQAudioProcessorEditor>(this);
+    //TODO what is going on here syntax wise
+    peakBypassButton.onClick = [safePtr]()
+    {
+        if (auto* comp = safePtr.getComponent())
+        {
+            auto bypassed = comp->peakBypassButton.getToggleState();
+            //if band is not bypassed, sliders should be enabled
+            comp->peakFreqSlider.setEnabled(!bypassed);
+            comp->peakGainSlider.setEnabled(!bypassed);
+            comp->peakQualitySlider.setEnabled(!bypassed);
+        }
+
+    };
+    lowcutBypassButton.onClick = [safePtr]()
+    {
+        if (auto* comp = safePtr.getComponent())
+        {
+            auto bypassed = comp->lowcutBypassButton.getToggleState();
+            //if band is not bypassed, sliders should be enabled
+            comp->lowCutFreqSlider.setEnabled(!bypassed);
+            comp->lowCutSlopeSlider.setEnabled(!bypassed);
+        }
+    };
+    highcutBypassButton.onClick = [safePtr]()
+    {
+        if (auto* comp = safePtr.getComponent())
+        {
+            auto bypassed = comp->highcutBypassButton.getToggleState();
+            //if band is not bypassed, sliders should be enabled
+            comp->highCutFreqSlider.setEnabled(!bypassed);
+            comp->highCutSlopeSlider.setEnabled(!bypassed);
+        }
+    };
+
+    analyzerEnabledButton.onClick = [safePtr]()
+    {
+        if (auto* comp = safePtr.getComponent())
+        {
+            auto enabled = comp->analyzerEnabledButton.getToggleState();
+            comp->responseCurveComponent.toggleAnalysisEnablement(enabled);
+        }
+    };
+
+
     setSize(600, 480);
 }
 
